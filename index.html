@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Burger Lab — Monte & Avalie</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍔</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -958,17 +959,20 @@
   async function sendRatingToSheets(burgerId) {
     if (!SHEETS_URL || SHEETS_URL.includes('SUA_URL')) return;
     const b = burgers.find(b => b.id === burgerId);
-    if (!b) return;
+    if (!b || !b.ratingHistory?.length) return;
+    const last = b.ratingHistory[b.ratingHistory.length - 1];
     try {
       const payload = {
         action: 'updateRating',
         id: burgerId,
         nome: b.name,
-        sabor: b.ratings.sabor || '',
-        textura: b.ratings.textura || '',
-        suculencia: b.ratings.suculencia || '',
-        equilibrio: b.ratings.equilibrio || '',
-        media: getScore(b).toFixed(2)
+        sabor: last.sabor || '',
+        textura: last.textura || '',
+        suculencia: last.suculencia || '',
+        equilibrio: last.equilibrio || '',
+        totalAvaliacoes: b.ratingHistory.length,
+        media: getScore(b).toFixed(2),
+        dataAvaliacao: last.data
       };
       await fetch(SHEETS_URL, {
         method: 'POST',
@@ -1042,54 +1046,75 @@
     { key: 'equilibrio', label: 'Equilíbrio' },
   ];
 
-  function setRating(burgerId, criteriaKey, value) {
-    const b = burgers.find(b => b.id === burgerId);
-    if (!b) return;
-    if (!b.ratings) b.ratings = {};
-    b.ratings[criteriaKey] = value;
-    persist();
-    updateStars(burgerId, criteriaKey, value);
-    updateCardScore(burgerId);
-    scheduleRankingSort();
-    sendRatingToSheets(burgerId);
-  }
+  // pendingRating guarda a avaliação em andamento antes de confirmar
+  let pendingRating = {}; // { burgerId: { sabor: N, textura: N, ... } }
 
-  function updateStars(burgerId, criteriaKey, value) {
+  function setPending(burgerId, criteriaKey, value) {
+    if (!pendingRating[burgerId]) pendingRating[burgerId] = {};
+    pendingRating[burgerId][criteriaKey] = value;
+
+    // Atualiza estrelas visualmente
     const row = document.querySelector(`[data-burger="${burgerId}"] .star-row[data-criteria="${criteriaKey}"]`);
-    if (!row) return;
-    row.querySelectorAll('.star').forEach((s, i) => {
-      s.classList.toggle('lit', i < value);
-    });
-    const disp = row.parentElement.querySelector('.score-display');
-    if (disp) disp.textContent = value + '/5';
+    if (row) {
+      row.querySelectorAll('.star').forEach((s, i) => s.classList.toggle('lit', i < value));
+      const disp = row.parentElement.querySelector('.score-display');
+      if (disp) disp.textContent = value + '/5';
+    }
+
+    // Mostra/habilita botão de confirmar
+    const btn = document.querySelector(`[data-burger="${burgerId}"] .btn-confirm`);
+    if (btn) {
+      const filled = CRITERIA.every(c => pendingRating[burgerId]?.[c.key]);
+      btn.disabled = !filled;
+      btn.style.opacity = filled ? '1' : '0.4';
+    }
   }
 
-  function updateCardScore(burgerId) {
+  function confirmRating(burgerId) {
     const b = burgers.find(b => b.id === burgerId);
-    if (!b) return;
-    const vals = Object.values(b.ratings || {});
-    const el = document.querySelector(`[data-burger="${burgerId}"] .card-score`);
-    if (!el) return;
-    if (vals.length === 0) {
-      el.textContent = '— ';
-      el.classList.add('unrated');
-    } else {
-      const avg = vals.reduce((a, c) => a + c, 0) / vals.length;
-      el.textContent = avg.toFixed(1);
-      el.classList.remove('unrated');
+    if (!b || !pendingRating[burgerId]) return;
+
+    const pending = pendingRating[burgerId];
+    if (!CRITERIA.every(c => pending[c.key])) {
+      showToast('⚠️ Avalie todos os critérios antes de confirmar!');
+      return;
     }
+
+    // Adiciona ao histórico
+    if (!b.ratingHistory) b.ratingHistory = [];
+    b.ratingHistory.push({
+      ...pending,
+      data: new Date().toLocaleString('pt-BR')
+    });
+
+    delete pendingRating[burgerId];
+    persist();
+    sendRatingToSheets(burgerId);
+    showToast('✅ Avaliação registrada!');
+    scheduleRankingSort();
+  }
+
+  function getScore(b) {
+    if (!b.ratingHistory || !b.ratingHistory.length) return -1;
+    // Média de todas as avaliações de todos os critérios
+    let total = 0, count = 0;
+    b.ratingHistory.forEach(r => {
+      CRITERIA.forEach(c => { if (r[c.key]) { total += r[c.key]; count++; } });
+    });
+    return count ? total / count : -1;
+  }
+
+  function getCriteriaAvg(b, key) {
+    if (!b.ratingHistory || !b.ratingHistory.length) return 0;
+    const vals = b.ratingHistory.map(r => r[key]).filter(Boolean);
+    if (!vals.length) return 0;
+    return vals.reduce((a, c) => a + c, 0) / vals.length;
   }
 
   let sortTimer = null;
   function scheduleRankingSort() {
     clearTimeout(sortTimer);
-    sortTimer = setTimeout(() => renderRanking(), 800);
-  }
-
-  function getScore(b) {
-    const vals = Object.values(b.ratings || {});
-    if (!vals.length) return -1;
-    return vals.reduce((a, c) => a + c, 0) / vals.length;
+    sortTimer = setTimeout(() => renderRanking(), 600);
   }
 
   // ─── RENDER RANKING ────────────────────────────────────────────
@@ -1108,11 +1133,16 @@
 
     container.innerHTML = sorted.map((b, idx) => {
       const score = getScore(b);
+      const totalAvals = b.ratingHistory?.length || 0;
       const rankNum = idx + 1;
       const rankClass = rankNum <= 3 ? `rank-${rankNum}` : '';
+
       const scoreDisplay = score < 0
         ? '<span class="card-score unrated">Avaliar</span>'
-        : `<span class="card-score">${score.toFixed(1)}</span>`;
+        : `<div style="text-align:right">
+            <span class="card-score">${score.toFixed(1)}</span>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${totalAvals} avaliação${totalAvals !== 1 ? 'ões' : ''}</div>
+           </div>`;
 
       const allIngredients = [
         b.pao && { text: b.pao, highlight: true },
@@ -1120,26 +1150,48 @@
         b.marca && { text: b.marca, highlight: false },
         b.ponto && { text: b.ponto },
         b.queijo && b.queijo !== 'Sem queijo' && { text: b.queijo, highlight: true },
-        ...( b.ingredientes || []).map(i => ({ text: i }))
+        ...(b.ingredientes || []).map(i => ({ text: i }))
       ].filter(Boolean);
 
       const ingTags = allIngredients.map(i =>
         `<span class="ing-tag ${i.highlight ? 'highlight' : ''}">${i.text}</span>`
       ).join('');
 
+      // Estrelas mostram a média histórica por critério (somente leitura se não há pending)
+      const pending = pendingRating[b.id] || {};
+      const allFilled = CRITERIA.every(c => pending[c.key]);
+
       const criteriaHTML = CRITERIA.map(c => {
-        const val = b.ratings?.[c.key] || 0;
+        const avg = getCriteriaAvg(b, c.key);
+        const displayVal = pending[c.key] ?? (avg > 0 ? Math.round(avg) : 0);
         const stars = [1,2,3,4,5].map(n =>
-          `<span class="star ${n <= val ? 'lit' : ''}" onclick="setRating(${b.id}, '${c.key}', ${n})">⭐</span>`
+          `<span class="star ${n <= displayVal ? 'lit' : ''}" onclick="setPending(${b.id}, '${c.key}', ${n})">⭐</span>`
         ).join('');
-        const scoreDisp = val > 0 ? `${val}/5` : '—';
+        const avgText = avg > 0 ? `média ${avg.toFixed(1)}/5` : '—';
         return `
           <div class="criteria-item">
             <div class="criteria-name">${c.label}</div>
             <div class="star-row" data-criteria="${c.key}">${stars}</div>
-            <div class="score-display">${scoreDisp}</div>
+            <div class="score-display">${avgText}</div>
           </div>`;
       }).join('');
+
+      // Histórico de avaliações
+      const histHTML = totalAvals > 0 ? `
+        <details style="margin-top:12px">
+          <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
+            <span style="color:var(--amber)">▸</span> Ver histórico de avaliações (${totalAvals})
+          </summary>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+            ${b.ratingHistory.map((r, i) => {
+              const avg = CRITERIA.reduce((a,c) => a + (r[c.key]||0), 0) / CRITERIA.length;
+              return `<div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
+                <span>#${i+1} — ${r.data}</span>
+                <span style="color:var(--amber);font-weight:600">${avg.toFixed(1)} ⭐</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </details>` : '';
 
       return `
         <div class="burger-card" data-burger="${b.id}">
@@ -1152,8 +1204,16 @@
           <div class="card-body">
             <div class="ingredients-summary">${ingTags}</div>
             ${b.extras ? `<div class="extras-text">✨ ${b.extras}</div>` : ''}
-            <div class="section-title" style="margin-bottom:12px">Avaliação</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="section-title" style="margin-bottom:0">Nova avaliação</div>
+              <button class="btn-confirm" onclick="confirmRating(${b.id})"
+                ${allFilled ? '' : 'disabled'}
+                style="background:var(--amber);border:none;border-radius:6px;padding:6px 16px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;cursor:pointer;color:#0f0d0b;opacity:${allFilled ? '1' : '0.4'}">
+                CONFIRMAR
+              </button>
+            </div>
             <div class="criteria-grid">${criteriaHTML}</div>
+            ${histHTML}
           </div>
           <div class="card-actions">
             <button class="btn-action edit" onclick="editBurger(${b.id})">✏️ Refazer receita</button>
