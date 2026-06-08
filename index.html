@@ -661,7 +661,7 @@
         <!-- Ingredientes base -->
         <div class="form-block">
           <h3><span class="icon">🥗</span> Ingredientes clássicos</h3>
-          <div class="option-grid">
+          <div class="option-grid" id="ing-chips">
             <label class="check-label"><input type="checkbox" value="Alface" onchange="updatePreview()"><span class="check-chip">🥬 Alface</span></label>
             <label class="check-label"><input type="checkbox" value="Tomate" onchange="updatePreview()"><span class="check-chip">🍅 Tomate</span></label>
             <label class="check-label"><input type="checkbox" value="Cebola" onchange="updatePreview()"><span class="check-chip">🧅 Cebola</span></label>
@@ -674,13 +674,18 @@
             <label class="check-label"><input type="checkbox" value="Cogumelos" onchange="updatePreview()"><span class="check-chip">🍄 Cogumelos</span></label>
             <label class="check-label"><input type="checkbox" value="Rúcula" onchange="updatePreview()"><span class="check-chip">🌿 Rúcula</span></label>
             <label class="check-label"><input type="checkbox" value="Cream cheese" onchange="updatePreview()"><span class="check-chip">🧈 Cream cheese</span></label>
+            <div id="ing-custom-chips" style="display:contents"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input id="ing-novo" class="text-input" type="text" placeholder="Adicionar outro ingrediente..." style="min-height:unset;flex:1" onkeydown="if(event.key==='Enter')addIngrediente()">
+            <button onclick="addIngrediente()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--amber);font-size:13px;cursor:pointer;white-space:nowrap;font-family:DM Sans,sans-serif">+ Adicionar</button>
           </div>
         </div>
 
         <!-- Molhos -->
         <div class="form-block">
           <h3><span class="icon">🫙</span> Molhos</h3>
-          <div class="option-grid">
+          <div class="option-grid" id="molho-chips">
             <label class="check-label"><input type="checkbox" value="Ketchup" onchange="updatePreview()"><span class="check-chip">Ketchup</span></label>
             <label class="check-label"><input type="checkbox" value="Mostarda" onchange="updatePreview()"><span class="check-chip">Mostarda</span></label>
             <label class="check-label"><input type="checkbox" value="Maionese" onchange="updatePreview()"><span class="check-chip">Maionese</span></label>
@@ -688,6 +693,11 @@
             <label class="check-label"><input type="checkbox" value="BBQ" onchange="updatePreview()"><span class="check-chip">BBQ</span></label>
             <label class="check-label"><input type="checkbox" value="Sriracha" onchange="updatePreview()"><span class="check-chip">Sriracha</span></label>
             <label class="check-label"><input type="checkbox" value="Molho especial da casa" onchange="updatePreview()"><span class="check-chip">Especial da casa</span></label>
+            <div id="molho-custom-chips" style="display:contents"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input id="molho-novo" class="text-input" type="text" placeholder="Adicionar outro molho..." style="min-height:unset;flex:1" onkeydown="if(event.key==='Enter')addMolho()">
+            <button onclick="addMolho()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--amber);font-size:13px;cursor:pointer;white-space:nowrap;font-family:DM Sans,sans-serif">+ Adicionar</button>
           </div>
         </div>
 
@@ -732,10 +742,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwF69GGHaOSBXdgqHE4xIo9B9KBrEnZaIKUwHVe8yYfPUDYhC0V84WSSX3CPDlZGYb1/exec';
+  const SHEETS_URL = 'SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI';
 
   let burgers = JSON.parse(localStorage.getItem('burgerlab') || '[]');
   let customQueijos = JSON.parse(localStorage.getItem('burgerlab-queijos') || '[]');
+  let customIngredientes = JSON.parse(localStorage.getItem('burgerlab-ingredientes') || '[]');
+  let customMolhos = JSON.parse(localStorage.getItem('burgerlab-molhos') || '[]');
   let editingId = null;
 
   // Renderiza chips de queijo customizados ao carregar
@@ -757,7 +769,6 @@
       localStorage.setItem('burgerlab-queijos', JSON.stringify(customQueijos));
       renderCustomQueijos();
     }
-    // Seleciona automaticamente o novo queijo
     setTimeout(() => {
       const r = document.querySelector(`input[name="queijo"][value="${val}"]`);
       if (r) { r.checked = true; updatePreview(); }
@@ -773,8 +784,76 @@
     updatePreview();
   }
 
+  function renderCustomIngredientes() {
+    const container = document.getElementById('ing-custom-chips');
+    container.innerHTML = customIngredientes.map(v => `
+      <label class="check-label">
+        <input type="checkbox" value="${v}" onchange="updatePreview()">
+        <span class="check-chip">${v} <span style="opacity:0.5;font-size:11px" onclick="removeIngrediente(event,'${v}')">✕</span></span>
+      </label>`).join('');
+  }
+
+  function addIngrediente() {
+    const input = document.getElementById('ing-novo');
+    const val = input.value.trim();
+    if (!val) return;
+    if (!customIngredientes.includes(val)) {
+      customIngredientes.push(val);
+      localStorage.setItem('burgerlab-ingredientes', JSON.stringify(customIngredientes));
+      renderCustomIngredientes();
+    }
+    setTimeout(() => {
+      const cb = document.querySelector(`#ing-custom-chips input[value="${val}"]`);
+      if (cb) { cb.checked = true; updatePreview(); }
+    }, 50);
+    input.value = '';
+  }
+
+  function removeIngrediente(e, val) {
+    e.preventDefault(); e.stopPropagation();
+    customIngredientes = customIngredientes.filter(v => v !== val);
+    localStorage.setItem('burgerlab-ingredientes', JSON.stringify(customIngredientes));
+    renderCustomIngredientes();
+    updatePreview();
+  }
+
+  function renderCustomMolhos() {
+    const container = document.getElementById('molho-custom-chips');
+    container.innerHTML = customMolhos.map(v => `
+      <label class="check-label">
+        <input type="checkbox" value="${v}" onchange="updatePreview()">
+        <span class="check-chip">${v} <span style="opacity:0.5;font-size:11px" onclick="removeMolho(event,'${v}')">✕</span></span>
+      </label>`).join('');
+  }
+
+  function addMolho() {
+    const input = document.getElementById('molho-novo');
+    const val = input.value.trim();
+    if (!val) return;
+    if (!customMolhos.includes(val)) {
+      customMolhos.push(val);
+      localStorage.setItem('burgerlab-molhos', JSON.stringify(customMolhos));
+      renderCustomMolhos();
+    }
+    setTimeout(() => {
+      const cb = document.querySelector(`#molho-custom-chips input[value="${val}"]`);
+      if (cb) { cb.checked = true; updatePreview(); }
+    }, 50);
+    input.value = '';
+  }
+
+  function removeMolho(e, val) {
+    e.preventDefault(); e.stopPropagation();
+    customMolhos = customMolhos.filter(v => v !== val);
+    localStorage.setItem('burgerlab-molhos', JSON.stringify(customMolhos));
+    renderCustomMolhos();
+    updatePreview();
+  }
+
   // Init
   renderCustomQueijos();
+  renderCustomIngredientes();
+  renderCustomMolhos();
 
   // ─── TAB SWITCH ────────────────────────────────────────────────
   function switchTab(tab) {
