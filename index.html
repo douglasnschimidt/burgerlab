@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Burger Lab — Monte & Avalie</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0d0b;
+    --surface: #1a1714;
+    --surface2: #231f1b;
+    --border: #2e2822;
+    --amber: #e8a020;
+    --amber-dim: #a06a0a;
+    --red: #c93b2a;
+    --green: #3a8c5c;
+    --text: #f0e8d8;
+    --text-muted: #8a7d6a;
+    --text-dim: #4a4038;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.5;
+  }
+
+  /* HEADER */
+  header {
+    padding: 28px 40px 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    letter-spacing: 2px;
+    color: var(--amber);
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(232,160,32,0.3);
+  }
+
+  .logo span {
+    color: var(--text);
+  }
+
+  .tagline {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 24px 40px 0;
+    border-bottom: 1px solid var(--border);
+    margin-top: 8px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 28px 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text-muted); }
+  .tab-btn.active {
+    color: var(--amber);
+    border-bottom-color: var(--amber);
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    padding: 36px 40px;
+    max-width: 1100px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeUp 0.3s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ===================== BUILD TAB ===================== */
+  .build-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .form-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 18px;
+  }
+
+  .form-block h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .form-block h3 .icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  /* Radio select options */
+  .option-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .opt-label {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+  }
+
+  .opt-label input { display: none; }
+
+  .opt-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .opt-label input:checked + .opt-chip {
+    background: rgba(232,160,32,0.12);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .opt-label:hover .opt-chip {
+    border-color: var(--amber-dim);
+    color: var(--text);
+  }
+
+  /* Checkbox options */
+  .check-label {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+  }
+
+  .check-label input { display: none; }
+
+  .check-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .check-label input:checked + .check-chip {
+    background: rgba(58,140,92,0.12);
+    border-color: var(--green);
+    color: #5fca8a;
+  }
+
+  .check-label:hover .check-chip {
+    border-color: #2a6040;
+    color: var(--text);
+  }
+
+  /* Text input */
+  .text-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  .text-input:focus { border-color: var(--amber-dim); }
+  .text-input::placeholder { color: var(--text-dim); }
+
+  input.text-input { min-height: unset; resize: none; }
+
+  /* Burger preview card */
+  .preview-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: sticky;
+    top: 20px;
+  }
+
+  .preview-card .burger-icon {
+    font-size: 56px;
+    text-align: center;
+    display: block;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 4px 16px rgba(232,160,32,0.3));
+  }
+
+  .preview-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 1px;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 20px;
+    min-height: 30px;
+  }
+
+  .preview-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .preview-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+  }
+
+  .preview-item .label {
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 70px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-top: 1px;
+  }
+
+  .preview-item .value {
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .empty-hint {
+    color: var(--text-dim);
+    font-size: 12px;
+    text-align: center;
+    padding: 20px 0;
+    font-style: italic;
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--amber);
+    color: #0f0d0b;
+    border: none;
+    border-radius: 8px;
+    padding: 13px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 20px;
+  }
+
+  .btn-primary:hover {
+    background: #f0b030;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(232,160,32,0.25);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ===================== RANKING TAB ===================== */
+  .ranking-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .ranking-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+  }
+
+  .empty-ranking {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+
+  .empty-ranking .big-icon { font-size: 64px; margin-bottom: 16px; }
+  .empty-ranking p { font-size: 15px; }
+  .empty-ranking span { color: var(--amber); }
+
+  /* Burger rating card */
+  .burger-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0;
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .burger-card:hover { border-color: var(--border); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-rank {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    color: var(--text-dim);
+    min-width: 40px;
+  }
+
+  .card-rank.rank-1 { color: var(--amber); }
+  .card-rank.rank-2 { color: #a0a0a0; }
+  .card-rank.rank-3 { color: #a0704a; }
+
+  .card-emoji { font-size: 32px; }
+
+  .card-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    flex: 1;
+  }
+
+  .card-score {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--amber);
+    letter-spacing: 1px;
+  }
+
+  .card-score.unrated { color: var(--text-dim); font-size: 18px; }
+
+  .card-body {
+    padding: 20px 24px;
+  }
+
+  .ingredients-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .ing-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .ing-tag.highlight {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+    background: rgba(232,160,32,0.06);
+  }
+
+  .extras-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 20px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border-left: 3px solid var(--amber-dim);
+  }
+
+  /* Rating criteria */
+  .criteria-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .criteria-item {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .criteria-name {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .star-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .star {
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    opacity: 0.25;
+    filter: grayscale(1);
+    line-height: 1;
+  }
+
+  .star.lit {
+    opacity: 1;
+    filter: none;
+  }
+
+  .star:hover { transform: scale(1.2); }
+
+  .score-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn-action {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-action.edit:hover { border-color: var(--amber-dim); color: var(--amber); }
+  .btn-action.delete:hover { border-color: var(--red); color: var(--red); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--surface2);
+    border: 1px solid var(--amber-dim);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 14px;
+    color: var(--text);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+    max-width: 300px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    header { padding: 20px 20px 0; }
+    .logo { font-size: 36px; }
+    .tabs { padding: 16px 20px 0; }
+    .main { padding: 24px 20px; }
+    .build-grid { grid-template-columns: 1fr; }
+    .preview-card { position: static; }
+    .criteria-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Burger<span>Lab</span></div>
+  <div class="tagline">Monte, avalie, repita.</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('build')">🔧 Montar</button>
+  <button class="tab-btn" onclick="switchTab('ranking')">🏆 Ranking</button>
+</div>
+
+<div class="main">
+
+  <!-- BUILD TAB -->
+  <div id="tab-build" class="tab-panel active">
+    <div class="build-grid">
+      <div class="build-form">
+
+        <!-- Nome -->
+        <div class="form-block">
+          <h3><span class="icon">✏️</span> Nome do hambúrguer</h3>
+          <input id="burger-name" class="text-input" type="text" placeholder="Ex: O Clássico da Vovó, Monster XL..." oninput="updatePreview()">
+        </div>
+
+        <!-- Pão -->
+        <div class="form-block">
+          <h3><span class="icon">🍞</span> Pão</h3>
+          <div class="option-grid">
+            <label class="opt-label"><input type="radio" name="pao" value="Brioche" onchange="updatePreview()"><span class="opt-chip">Brioche</span></label>
+            <label class="opt-label"><input type="radio" name="pao" value="Australiano" onchange="updatePreview()"><span class="opt-chip">Australiano</span></label>
+            <label class="opt-label"><input type="radio" name="pao" value="Pretzel" onchange="updatePreview()"><span class="opt-chip">Pretzel</span></label>
+            <label class="opt-label"><input type="radio" name="pao" value="Ciabatta" onchange="updatePreview()"><span class="opt-chip">Ciabatta</span></label>
+            <label class="opt-label"><input type="radio" name="pao" value="Clássico de gergelim" onchange="updatePreview()"><span class="opt-chip">Clássico (gergelim)</span></label>
+            <label class="opt-label"><input type="radio" name="pao" value="Sem pão (low carb)" onchange="updatePreview()"><span class="opt-chip">Low carb</span></label>
+          </div>
+        </div>
+
+        <!-- Carne/hambúrguer -->
+        <div class="form-block">
+          <h3><span class="icon">🥩</span> Hambúrguer (carne)</h3>
+          <div style="margin-bottom:14px">
+            <div class="section-title">Tipo</div>
+            <div class="option-grid">
+              <label class="opt-label"><input type="radio" name="tipo" value="Smash" onchange="updatePreview()"><span class="opt-chip">Smash</span></label>
+              <label class="opt-label"><input type="radio" name="tipo" value="Tradicional" onchange="updatePreview()"><span class="opt-chip">Tradicional</span></label>
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <div class="section-title">Marca / Origem</div>
+            <input id="marca-livre" class="text-input" type="text" placeholder="Ex: Seara, Friboi, Artesanal, açougue do bairro..." oninput="updatePreview()">
+          </div>
+          <div>
+            <div class="section-title">Ponto</div>
+            <div class="option-grid">
+              <label class="opt-label"><input type="radio" name="ponto" value="Mal passado" onchange="updatePreview()"><span class="opt-chip">Mal passado</span></label>
+              <label class="opt-label"><input type="radio" name="ponto" value="Ao ponto" onchange="updatePreview()"><span class="opt-chip">Ao ponto</span></label>
+              <label class="opt-label"><input type="radio" name="ponto" value="Bem passado" onchange="updatePreview()"><span class="opt-chip">Bem passado</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queijo -->
+        <div class="form-block">
+          <h3><span class="icon">🧀</span> Queijo</h3>
+          <div class="option-grid" style="margin-bottom:10px">
+            <label class="opt-label"><input type="radio" name="queijo" value="Sem queijo" onchange="updatePreview()"><span class="opt-chip">Sem queijo</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Cheddar" onchange="updatePreview()"><span class="opt-chip">Cheddar</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Americano" onchange="updatePreview()"><span class="opt-chip">Americano</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Prato" onchange="updatePreview()"><span class="opt-chip">Prato</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Brie" onchange="updatePreview()"><span class="opt-chip">Brie</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Gouda" onchange="updatePreview()"><span class="opt-chip">Gouda</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Provolone" onchange="updatePreview()"><span class="opt-chip">Provolone</span></label>
+            <label class="opt-label"><input type="radio" name="queijo" value="Duplo cheddar" onchange="updatePreview()"><span class="opt-chip">Duplo cheddar</span></label>
+            <!-- chips customizados aparecem aqui -->
+            <div id="queijo-custom-chips" style="display:contents"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input id="queijo-novo" class="text-input" type="text" placeholder="Adicionar outro queijo..." style="min-height:unset;flex:1" onkeydown="if(event.key==='Enter')addQueijo()">
+            <button onclick="addQueijo()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--amber);font-size:13px;cursor:pointer;white-space:nowrap;font-family:DM Sans,sans-serif">+ Adicionar</button>
+          </div>
+        </div>
+
+        <!-- Ingredientes base -->
+        <div class="form-block">
+          <h3><span class="icon">🥗</span> Ingredientes clássicos</h3>
+          <div class="option-grid">
+            <label class="check-label"><input type="checkbox" value="Alface" onchange="updatePreview()"><span class="check-chip">🥬 Alface</span></label>
+            <label class="check-label"><input type="checkbox" value="Tomate" onchange="updatePreview()"><span class="check-chip">🍅 Tomate</span></label>
+            <label class="check-label"><input type="checkbox" value="Cebola" onchange="updatePreview()"><span class="check-chip">🧅 Cebola</span></label>
+            <label class="check-label"><input type="checkbox" value="Cebola caramelizada" onchange="updatePreview()"><span class="check-chip">🍯 Cebola caramelizada</span></label>
+            <label class="check-label"><input type="checkbox" value="Picles" onchange="updatePreview()"><span class="check-chip">🥒 Picles</span></label>
+            <label class="check-label"><input type="checkbox" value="Bacon" onchange="updatePreview()"><span class="check-chip">🥓 Bacon</span></label>
+            <label class="check-label"><input type="checkbox" value="Ovo" onchange="updatePreview()"><span class="check-chip">🍳 Ovo</span></label>
+            <label class="check-label"><input type="checkbox" value="Jalapeño" onchange="updatePreview()"><span class="check-chip">🌶️ Jalapeño</span></label>
+            <label class="check-label"><input type="checkbox" value="Abacate/guacamole" onchange="updatePreview()"><span class="check-chip">🥑 Guacamole</span></label>
+            <label class="check-label"><input type="checkbox" value="Cogumelos" onchange="updatePreview()"><span class="check-chip">🍄 Cogumelos</span></label>
+            <label class="check-label"><input type="checkbox" value="Rúcula" onchange="updatePreview()"><span class="check-chip">🌿 Rúcula</span></label>
+            <label class="check-label"><input type="checkbox" value="Cream cheese" onchange="updatePreview()"><span class="check-chip">🧈 Cream cheese</span></label>
+          </div>
+        </div>
+
+        <!-- Molhos -->
+        <div class="form-block">
+          <h3><span class="icon">🫙</span> Molhos</h3>
+          <div class="option-grid">
+            <label class="check-label"><input type="checkbox" value="Ketchup" onchange="updatePreview()"><span class="check-chip">Ketchup</span></label>
+            <label class="check-label"><input type="checkbox" value="Mostarda" onchange="updatePreview()"><span class="check-chip">Mostarda</span></label>
+            <label class="check-label"><input type="checkbox" value="Maionese" onchange="updatePreview()"><span class="check-chip">Maionese</span></label>
+            <label class="check-label"><input type="checkbox" value="Maionese temperada" onchange="updatePreview()"><span class="check-chip">Maionese temperada</span></label>
+            <label class="check-label"><input type="checkbox" value="BBQ" onchange="updatePreview()"><span class="check-chip">BBQ</span></label>
+            <label class="check-label"><input type="checkbox" value="Sriracha" onchange="updatePreview()"><span class="check-chip">Sriracha</span></label>
+            <label class="check-label"><input type="checkbox" value="Molho especial da casa" onchange="updatePreview()"><span class="check-chip">Especial da casa</span></label>
+          </div>
+        </div>
+
+        <!-- Extras livres -->
+        <div class="form-block">
+          <h3><span class="icon">✨</span> Ingredientes extras</h3>
+          <textarea id="extras" class="text-input" placeholder="Descreva ingredientes especiais, substituições ou detalhes adicionais..." oninput="updatePreview()"></textarea>
+        </div>
+
+      </div>
+
+      <!-- PREVIEW -->
+      <div>
+        <div class="preview-card">
+          <span class="burger-icon">🍔</span>
+          <div class="preview-name" id="preview-name">Seu hambúrguer</div>
+          <ul class="preview-list" id="preview-list">
+            <li class="empty-hint">Preencha os campos ao lado para ver a receita aqui.</li>
+          </ul>
+          <button class="btn-primary" onclick="saveBurger()" id="save-btn">SALVAR E AVALIAR →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RANKING TAB -->
+  <div id="tab-ranking" class="tab-panel">
+    <div class="ranking-header">
+      <div class="ranking-title">🏆 Ranking</div>
+      <button class="btn-secondary" onclick="switchTab('build')">+ Novo hambúrguer</button>
+    </div>
+    <div id="ranking-list">
+      <div class="empty-ranking">
+        <div class="big-icon">🍔</div>
+        <p>Nenhum hambúrguer ainda.<br>Vá para <span>Montar</span> e crie o primeiro!</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SHEETS_URL = 'SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI';
+
+  let burgers = JSON.parse(localStorage.getItem('burgerlab') || '[]');
+  let customQueijos = JSON.parse(localStorage.getItem('burgerlab-queijos') || '[]');
+  let editingId = null;
+
+  // Renderiza chips de queijo customizados ao carregar
+  function renderCustomQueijos() {
+    const container = document.getElementById('queijo-custom-chips');
+    container.innerHTML = customQueijos.map(q => `
+      <label class="opt-label">
+        <input type="radio" name="queijo" value="${q}" onchange="updatePreview()">
+        <span class="opt-chip">${q} <span style="opacity:0.5;font-size:11px" onclick="removeQueijo(event,'${q}')">✕</span></span>
+      </label>`).join('');
+  }
+
+  function addQueijo() {
+    const input = document.getElementById('queijo-novo');
+    const val = input.value.trim();
+    if (!val) return;
+    if (!customQueijos.includes(val)) {
+      customQueijos.push(val);
+      localStorage.setItem('burgerlab-queijos', JSON.stringify(customQueijos));
+      renderCustomQueijos();
+    }
+    // Seleciona automaticamente o novo queijo
+    setTimeout(() => {
+      const r = document.querySelector(`input[name="queijo"][value="${val}"]`);
+      if (r) { r.checked = true; updatePreview(); }
+    }, 50);
+    input.value = '';
+  }
+
+  function removeQueijo(e, val) {
+    e.preventDefault(); e.stopPropagation();
+    customQueijos = customQueijos.filter(q => q !== val);
+    localStorage.setItem('burgerlab-queijos', JSON.stringify(customQueijos));
+    renderCustomQueijos();
+    updatePreview();
+  }
+
+  // Init
+  renderCustomQueijos();
+
+  // ─── TAB SWITCH ────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    const btns = document.querySelectorAll('.tab-btn');
+    btns[tab === 'build' ? 0 : 1].classList.add('active');
+    if (tab === 'ranking') renderRanking();
+  }
+
+  // ─── READ FORM ─────────────────────────────────────────────────
+  function readForm() {
+    const name = document.getElementById('burger-name').value.trim();
+    const pao = document.querySelector('input[name="pao"]:checked')?.value || '';
+    const tipo = document.querySelector('input[name="tipo"]:checked')?.value || '';
+    const marca = document.getElementById('marca-livre').value.trim();
+    const ponto = document.querySelector('input[name="ponto"]:checked')?.value || '';
+    const queijo = document.querySelector('input[name="queijo"]:checked')?.value || '';
+    const ingredientes = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(el => el.value);
+    const extras = document.getElementById('extras').value.trim();
+    return { name, pao, tipo, marca, ponto, queijo, ingredientes, extras };
+  }
+
+  // ─── UPDATE PREVIEW ────────────────────────────────────────────
+  function updatePreview() {
+    const f = readForm();
+    document.getElementById('preview-name').textContent = f.name || 'Seu hambúrguer';
+
+    const items = [];
+    if (f.pao) items.push({ label: 'Pão', value: f.pao });
+    if (f.tipo || f.marca || f.ponto) {
+      const carneVal = [f.tipo, f.marca, f.ponto].filter(Boolean).join(' · ');
+      items.push({ label: 'Carne', value: carneVal });
+    }
+    if (f.queijo) items.push({ label: 'Queijo', value: f.queijo });
+    if (f.ingredientes.length) items.push({ label: 'Ingredientes', value: f.ingredientes.join(', ') });
+    if (f.extras) items.push({ label: 'Extras', value: f.extras });
+
+    const list = document.getElementById('preview-list');
+    if (!items.length) {
+      list.innerHTML = '<li class="empty-hint">Preencha os campos ao lado para ver a receita aqui.</li>';
+      return;
+    }
+    list.innerHTML = items.map(i => `
+      <li class="preview-item">
+        <span class="label">${i.label}</span>
+        <span class="value">${i.value}</span>
+      </li>`).join('');
+  }
+
+  // ─── SAVE BURGER ───────────────────────────────────────────────
+  function saveBurger() {
+    const f = readForm();
+    if (!f.name) { showToast('⚠️ Dê um nome ao hambúrguer primeiro!'); return; }
+    if (!f.pao && !f.tipo && !f.marca && !f.queijo && !f.ingredientes.length) {
+      showToast('⚠️ Adicione pelo menos um ingrediente!'); return;
+    }
+
+    if (editingId !== null) {
+      const idx = burgers.findIndex(b => b.id === editingId);
+      if (idx !== -1) burgers[idx] = { ...burgers[idx], ...f };
+      editingId = null;
+      document.getElementById('save-btn').textContent = 'SALVAR E AVALIAR →';
+    } else {
+      const burger = { id: Date.now(), ...f, ratings: {}, createdAt: new Date().toISOString() };
+      burgers.push(burger);
+      sendToSheets(burger);
+    }
+
+    persist();
+    resetForm();
+    showToast('🍔 Hambúrguer salvo! Avalie no Ranking.');
+    setTimeout(() => switchTab('ranking'), 1200);
+  }
+
+  async function sendToSheets(burger) {
+    if (!SHEETS_URL || SHEETS_URL.includes('SUA_URL')) return;
+    try {
+      const payload = {
+        action: 'addBurger',
+        id: burger.id,
+        nome: burger.name,
+        pao: burger.pao,
+        tipo: burger.tipo,
+        marca: burger.marca,
+        ponto: burger.ponto,
+        queijo: burger.queijo,
+        ingredientes: burger.ingredientes.join(', '),
+        extras: burger.extras,
+        data: new Date().toLocaleString('pt-BR')
+      };
+      await fetch(SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch(e) { console.warn('Sheets error:', e); }
+  }
+
+  async function sendRatingToSheets(burgerId) {
+    if (!SHEETS_URL || SHEETS_URL.includes('SUA_URL')) return;
+    const b = burgers.find(b => b.id === burgerId);
+    if (!b) return;
+    try {
+      const payload = {
+        action: 'updateRating',
+        id: burgerId,
+        nome: b.name,
+        sabor: b.ratings.sabor || '',
+        textura: b.ratings.textura || '',
+        suculencia: b.ratings.suculencia || '',
+        equilibrio: b.ratings.equilibrio || '',
+        media: getScore(b).toFixed(2)
+      };
+      await fetch(SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch(e) { console.warn('Sheets error:', e); }
+  }
+
+  // ─── RESET FORM ────────────────────────────────────────────────
+  function resetForm() {
+    document.getElementById('burger-name').value = '';
+    document.getElementById('marca-livre').value = '';
+    document.getElementById('extras').value = '';
+    document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+    document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+    updatePreview();
+  }
+
+  // ─── EDIT BURGER ───────────────────────────────────────────────
+  function editBurger(id) {
+    const b = burgers.find(b => b.id === id);
+    if (!b) return;
+    editingId = id;
+    switchTab('build');
+
+    setTimeout(() => {
+      document.getElementById('burger-name').value = b.name;
+      document.getElementById('marca-livre').value = b.marca || '';
+      document.getElementById('extras').value = b.extras || '';
+
+      if (b.pao) {
+        const r = document.querySelector(`input[name="pao"][value="${b.pao}"]`);
+        if (r) r.checked = true;
+      }
+      if (b.tipo) {
+        const r = document.querySelector(`input[name="tipo"][value="${b.tipo}"]`);
+        if (r) r.checked = true;
+      }
+      if (b.ponto) {
+        const r = document.querySelector(`input[name="ponto"][value="${b.ponto}"]`);
+        if (r) r.checked = true;
+      }
+      if (b.queijo) {
+        const r = document.querySelector(`input[name="queijo"][value="${b.queijo}"]`);
+        if (r) r.checked = true;
+      }
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = b.ingredientes.includes(cb.value);
+      });
+
+      document.getElementById('save-btn').textContent = 'SALVAR ALTERAÇÕES →';
+      updatePreview();
+    }, 100);
+  }
+
+  // ─── DELETE BURGER ─────────────────────────────────────────────
+  function deleteBurger(id) {
+    burgers = burgers.filter(b => b.id !== id);
+    persist();
+    renderRanking();
+    showToast('🗑️ Hambúrguer removido.');
+  }
+
+  // ─── RATING ────────────────────────────────────────────────────
+  const CRITERIA = [
+    { key: 'sabor', label: 'Sabor' },
+    { key: 'textura', label: 'Textura' },
+    { key: 'suculencia', label: 'Suculência' },
+    { key: 'equilibrio', label: 'Equilíbrio' },
+  ];
+
+  function setRating(burgerId, criteriaKey, value) {
+    const b = burgers.find(b => b.id === burgerId);
+    if (!b) return;
+    if (!b.ratings) b.ratings = {};
+    b.ratings[criteriaKey] = value;
+    persist();
+    updateStars(burgerId, criteriaKey, value);
+    updateCardScore(burgerId);
+    scheduleRankingSort();
+    sendRatingToSheets(burgerId);
+  }
+
+  function updateStars(burgerId, criteriaKey, value) {
+    const row = document.querySelector(`[data-burger="${burgerId}"] .star-row[data-criteria="${criteriaKey}"]`);
+    if (!row) return;
+    row.querySelectorAll('.star').forEach((s, i) => {
+      s.classList.toggle('lit', i < value);
+    });
+    const disp = row.parentElement.querySelector('.score-display');
+    if (disp) disp.textContent = value + '/5';
+  }
+
+  function updateCardScore(burgerId) {
+    const b = burgers.find(b => b.id === burgerId);
+    if (!b) return;
+    const vals = Object.values(b.ratings || {});
+    const el = document.querySelector(`[data-burger="${burgerId}"] .card-score`);
+    if (!el) return;
+    if (vals.length === 0) {
+      el.textContent = '— ';
+      el.classList.add('unrated');
+    } else {
+      const avg = vals.reduce((a, c) => a + c, 0) / vals.length;
+      el.textContent = avg.toFixed(1);
+      el.classList.remove('unrated');
+    }
+  }
+
+  let sortTimer = null;
+  function scheduleRankingSort() {
+    clearTimeout(sortTimer);
+    sortTimer = setTimeout(() => renderRanking(), 800);
+  }
+
+  function getScore(b) {
+    const vals = Object.values(b.ratings || {});
+    if (!vals.length) return -1;
+    return vals.reduce((a, c) => a + c, 0) / vals.length;
+  }
+
+  // ─── RENDER RANKING ────────────────────────────────────────────
+  function renderRanking() {
+    const container = document.getElementById('ranking-list');
+    if (!burgers.length) {
+      container.innerHTML = `
+        <div class="empty-ranking">
+          <div class="big-icon">🍔</div>
+          <p>Nenhum hambúrguer ainda.<br>Vá para <span>Montar</span> e crie o primeiro!</p>
+        </div>`;
+      return;
+    }
+
+    const sorted = [...burgers].sort((a, b) => getScore(b) - getScore(a));
+
+    container.innerHTML = sorted.map((b, idx) => {
+      const score = getScore(b);
+      const rankNum = idx + 1;
+      const rankClass = rankNum <= 3 ? `rank-${rankNum}` : '';
+      const scoreDisplay = score < 0
+        ? '<span class="card-score unrated">Avaliar</span>'
+        : `<span class="card-score">${score.toFixed(1)}</span>`;
+
+      const allIngredients = [
+        b.pao && { text: b.pao, highlight: true },
+        b.tipo && { text: b.tipo, highlight: true },
+        b.marca && { text: b.marca, highlight: false },
+        b.ponto && { text: b.ponto },
+        b.queijo && b.queijo !== 'Sem queijo' && { text: b.queijo, highlight: true },
+        ...( b.ingredientes || []).map(i => ({ text: i }))
+      ].filter(Boolean);
+
+      const ingTags = allIngredients.map(i =>
+        `<span class="ing-tag ${i.highlight ? 'highlight' : ''}">${i.text}</span>`
+      ).join('');
+
+      const criteriaHTML = CRITERIA.map(c => {
+        const val = b.ratings?.[c.key] || 0;
+        const stars = [1,2,3,4,5].map(n =>
+          `<span class="star ${n <= val ? 'lit' : ''}" onclick="setRating(${b.id}, '${c.key}', ${n})">⭐</span>`
+        ).join('');
+        const scoreDisp = val > 0 ? `${val}/5` : '—';
+        return `
+          <div class="criteria-item">
+            <div class="criteria-name">${c.label}</div>
+            <div class="star-row" data-criteria="${c.key}">${stars}</div>
+            <div class="score-display">${scoreDisp}</div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="burger-card" data-burger="${b.id}">
+          <div class="card-header">
+            <div class="card-rank ${rankClass}">#${rankNum}</div>
+            <div class="card-emoji">🍔</div>
+            <div class="card-name">${b.name}</div>
+            ${scoreDisplay}
+          </div>
+          <div class="card-body">
+            <div class="ingredients-summary">${ingTags}</div>
+            ${b.extras ? `<div class="extras-text">✨ ${b.extras}</div>` : ''}
+            <div class="section-title" style="margin-bottom:12px">Avaliação</div>
+            <div class="criteria-grid">${criteriaHTML}</div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action edit" onclick="editBurger(${b.id})">✏️ Refazer receita</button>
+            <button class="btn-action delete" onclick="deleteBurger(${b.id})">🗑️ Remover</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ─── UTILS ─────────────────────────────────────────────────────
+  function persist() {
+    localStorage.setItem('burgerlab', JSON.stringify(burgers));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>
